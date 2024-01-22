@@ -320,6 +320,7 @@ function physicsEngine(player1, player2, ball, userInputArray) {
     // this javascript code is refactored not to need above two function except for
     // a part of FUN_00402d90:
     // FUN_00402d90 include FUN_004031b0(calculateExpectedLandingPointXFor)
+    // 기대되는 착지 지점 x를 예측하여 저장한다.
     calculateExpectedLandingPointXFor(ball); // calculate expected_X;
 
     processPlayerMovementAndSetPlayerPosition(
@@ -433,12 +434,14 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
     If apply (futureBallX > (GROUND_WIDTH - BALL_RADIUS)), and if the maximum number of loop is not limited,
     it is observed that infinite loop in the function expectedLandingPointXWhenPowerHit does not terminate.
   */
+  // 왼쪽 끝이나 오른쪽 끝에 맞았을 때 방향을 전환한다.
   if (futureBallX < BALL_RADIUS || futureBallX > GROUND_WIDTH) {
     ball.xVelocity = -ball.xVelocity;
   }
 
   let futureBallY = ball.y + ball.yVelocity;
   // if the center of ball would get out of upper world bound
+  // 천장 닿으면 속도를 1로 만듬
   if (futureBallY < 0) {
     ball.yVelocity = 1;
   }
@@ -449,13 +452,16 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
     ball.y > NET_PILLAR_TOP_TOP_Y_COORD
   ) {
     if (ball.y <= NET_PILLAR_TOP_BOTTOM_Y_COORD) {
+      // 네트 윗부분을 아랫방향으로 찍었을 때
       if (ball.yVelocity > 0) {
         ball.yVelocity = -ball.yVelocity;
       }
     } else {
       if (ball.x < GROUND_HALF_WIDTH) {
+        // 네트를 왼쪽에서 쳤을 때
         ball.xVelocity = -Math.abs(ball.xVelocity);
       } else {
+        // 네트를 오른쪽에서 쳤을 때
         ball.xVelocity = Math.abs(ball.xVelocity);
       }
     }
@@ -463,6 +469,7 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
 
   futureBallY = ball.y + ball.yVelocity;
   // if ball would touch ground
+  // BALL_TOUCHING_GROUND_Y_COORD: 252
   if (futureBallY > BALL_TOUCHING_GROUND_Y_COORD) {
     // FUN_00408470 omitted
     // the function omitted above receives 100 * (ball.x - 216),
@@ -470,8 +477,8 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
     // code function (ballpointer + 0x28 + 0x10)? omitted
     // the omitted two functions maybe do a part of sound playback role.
     ball.sound.ballTouchesGround = true;
-
     ball.yVelocity = -ball.yVelocity;
+    // 부딪히는 effect
     ball.punchEffectX = ball.x;
     ball.y = BALL_TOUCHING_GROUND_Y_COORD;
     ball.punchEffectRadius = BALL_RADIUS;
@@ -480,6 +487,7 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
   }
   ball.y = futureBallY;
   ball.x = ball.x + ball.xVelocity;
+  // 공의 중력가속도 : 1
   ball.yVelocity += 1;
 
   return false;
@@ -516,9 +524,11 @@ function processPlayerMovementAndSetPlayerPosition(
   let playerVelocityX = 0;
   if (player.state < 5) {
     if (player.state < 3) {
+      // 그냥 움직이는 속도 : 6
       playerVelocityX = userInput.xDirection * 6;
     } else {
       // player.state === 3 i.e. player is diving..
+      // 다이빙시 속도 : 8
       playerVelocityX = player.divingDirection * 8;
     }
   }
@@ -814,7 +824,7 @@ function letComputerDecideUserInput(player, ball, theOtherPlayer, userInput) {
     if (
       (ball.expectedLandingPointX <= leftBoundary ||
         ball.expectedLandingPointX >=
-          Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
+        Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
       player.computerWhereToStandBy === 0
     ) {
       // If conditions above met, the computer estimates the proper location to stay as the middle point of their side
@@ -853,7 +863,7 @@ function letComputerDecideUserInput(player, ball, theOtherPlayer, userInput) {
       ball.expectedLandingPointX > leftBoundary &&
       ball.expectedLandingPointX < rightBoundary &&
       Math.abs(ball.x - player.x) >
-        player.computerBoldness * 5 + PLAYER_LENGTH &&
+      player.computerBoldness * 5 + PLAYER_LENGTH &&
       ball.x > leftBoundary &&
       ball.x < rightBoundary &&
       ball.y > 174
@@ -918,7 +928,7 @@ function decideWhetherInputPowerHit(player, ball, theOtherPlayer, userInput) {
           (expectedLandingPointX <=
             Number(player.isPlayer2) * GROUND_HALF_WIDTH ||
             expectedLandingPointX >=
-              Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
+            Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
           Math.abs(expectedLandingPointX - theOtherPlayer.x) > PLAYER_LENGTH
         ) {
           userInput.xDirection = xDirection;
@@ -939,7 +949,7 @@ function decideWhetherInputPowerHit(player, ball, theOtherPlayer, userInput) {
           (expectedLandingPointX <=
             Number(player.isPlayer2) * GROUND_HALF_WIDTH ||
             expectedLandingPointX >=
-              Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
+            Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
           Math.abs(expectedLandingPointX - theOtherPlayer.x) > PLAYER_LENGTH
         ) {
           userInput.xDirection = xDirection;

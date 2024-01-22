@@ -125,7 +125,7 @@ export class PikachuVolleyball {
       this.slowMotionNumOfSkippedFrames++;
       if (
         this.slowMotionNumOfSkippedFrames %
-          Math.round(this.normalFPS / this.slowMotionFPS) !==
+        Math.round(this.normalFPS / this.slowMotionFPS) !==
         0
       ) {
         return;
@@ -346,6 +346,9 @@ export class PikachuVolleyball {
     const isBallTouchingGround = this.physics.runEngineForNextFrame(
       this.keyboardArray
     );
+    console.log("Player1", this.physics.player1.frameNumber)
+    // console.log("Ball", this.physics.ball.x, this.physics.ball.y, this.physics.ball.yVelocity)
+    // console.log("Player State", this.physics.player1.state)
 
     this.playSoundEffect();
     this.view.game.drawPlayersAndBall(this.physics);
