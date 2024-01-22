@@ -4,6 +4,10 @@
  * Some codes in this module were gained by reverse engineering the original machine code.
  * The codes gained by reverse engineering are commented by the address of the function referred to in the machine code.
  * ex) FUN_00405d50 means the function at the address 00405d50 in the machine code.
+ * 
+ * ** anchor **
+ * 0   : messages, fadeinout
+ * 0.5 : ball, shadows, player
  */
 'use strict';
 import { AnimatedSprite } from '@pixi/sprite-animated';
