@@ -629,7 +629,7 @@
 "meta": {
 	"app": "https://www.codeandweb.com/texturepacker",
 	"version": "1.0",
-	"image": "sprite_sheet.png",
+	"image": "sprite_sheet_debug.png",
 	"format": "RGBA8888",
 	"size": {"w":476,"h":885},
 	"scale": "1",
