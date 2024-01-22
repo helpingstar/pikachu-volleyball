@@ -108,6 +108,14 @@ export function setUpUI(pikaVolley, ticker) {
         pikaVolley.normalFPS = 30;
         ticker.maxFPS = pikaVolley.normalFPS;
         break;
+      case 'debug1':
+        pikaVolley.normalFPS = 60;
+        ticker.maxFPS = pikaVolley.normalFPS;
+        break;
+      case 'debug2':
+        pikaVolley.normalFPS = 100;
+        ticker.maxFPS = pikaVolley.normalFPS;
+        break;
     }
     switch (options.winningScore) {
       case '5':
@@ -273,6 +281,8 @@ function setUpBtns(pikaVolley, applyAndSaveOptions) {
   const slowSpeedBtn = document.getElementById('slow-speed-btn');
   const mediumSpeedBtn = document.getElementById('medium-speed-btn');
   const fastSpeedBtn = document.getElementById('fast-speed-btn');
+  const debug1SpeedBtn = document.getElementById('debug1-speed-btn')
+  const debug2SpeedBtn = document.getElementById('debug2-speed-btn')
   slowSpeedBtn.addEventListener('click', () => {
     applyAndSaveOptions({ speed: 'slow' });
   });
@@ -282,7 +292,12 @@ function setUpBtns(pikaVolley, applyAndSaveOptions) {
   fastSpeedBtn.addEventListener('click', () => {
     applyAndSaveOptions({ speed: 'fast' });
   });
-
+  debug1SpeedBtn.addEventListener('click', () => {
+    applyAndSaveOptions({ speed: 'debug1' });
+  });
+  debug2SpeedBtn.addEventListener('click', () => {
+    applyAndSaveOptions({ speed: 'debug2' });
+  });
   const winningScore5Btn = document.getElementById('winning-score-5-btn');
   const winningScore10Btn = document.getElementById('winning-score-10-btn');
   const winningScore15Btn = document.getElementById('winning-score-15-btn');
@@ -538,21 +553,43 @@ function setSelectedOptionsBtn(options) {
     const slowSpeedBtn = document.getElementById('slow-speed-btn');
     const mediumSpeedBtn = document.getElementById('medium-speed-btn');
     const fastSpeedBtn = document.getElementById('fast-speed-btn');
+    const debug1SpeedBtn = document.getElementById('debug1-speed-btn');
+    const debug2SpeedBtn = document.getElementById('debug2-speed-btn');
     switch (options.speed) {
       case 'slow':
         mediumSpeedBtn.classList.remove('selected');
         fastSpeedBtn.classList.remove('selected');
         slowSpeedBtn.classList.add('selected');
+        debug1SpeedBtn.classList.remove('selected');
+        debug2SpeedBtn.classList.remove('selected');
         break;
       case 'medium':
         fastSpeedBtn.classList.remove('selected');
         slowSpeedBtn.classList.remove('selected');
         mediumSpeedBtn.classList.add('selected');
+        debug1SpeedBtn.classList.remove('selected');
+        debug2SpeedBtn.classList.remove('selected');
         break;
       case 'fast':
         slowSpeedBtn.classList.remove('selected');
         mediumSpeedBtn.classList.remove('selected');
         fastSpeedBtn.classList.add('selected');
+        debug1SpeedBtn.classList.remove('selected');
+        debug2SpeedBtn.classList.remove('selected');
+        break;
+      case 'debug1':
+        slowSpeedBtn.classList.remove('selected');
+        mediumSpeedBtn.classList.remove('selected');
+        fastSpeedBtn.classList.remove('selected');
+        debug1SpeedBtn.classList.add('selected');
+        debug2SpeedBtn.classList.remove('selected');
+        break;
+      case 'debug2':
+        slowSpeedBtn.classList.remove('selected');
+        mediumSpeedBtn.classList.remove('selected');
+        fastSpeedBtn.classList.remove('selected');
+        debug1SpeedBtn.classList.remove('selected');
+        debug2SpeedBtn.classList.add('selected');
         break;
     }
   }
