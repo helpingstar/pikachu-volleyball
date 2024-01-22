@@ -346,9 +346,6 @@ export class PikachuVolleyball {
     const isBallTouchingGround = this.physics.runEngineForNextFrame(
       this.keyboardArray
     );
-    console.log("Player1", this.physics.player1.frameNumber)
-    // console.log("Ball", this.physics.ball.x, this.physics.ball.y, this.physics.ball.yVelocity)
-    // console.log("Player State", this.physics.player1.state)
 
     this.playSoundEffect();
     this.view.game.drawPlayersAndBall(this.physics);
@@ -373,7 +370,7 @@ export class PikachuVolleyball {
       this._isPracticeMode === false &&
       this.roundEnded === false &&
       this.gameEnded === false
-    ) {
+    ) {                     // 부딪히는 Effect
       if (this.physics.ball.punchEffectX < GROUND_HALF_WIDTH) {
         this.isPlayer2Serve = true;
         this.scores[1] += 1;
