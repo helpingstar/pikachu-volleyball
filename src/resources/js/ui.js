@@ -109,7 +109,7 @@ export function setUpUI(pikaVolley, ticker) {
         ticker.maxFPS = pikaVolley.normalFPS;
         break;
       case 'debug1':
-        pikaVolley.normalFPS = 60;
+        pikaVolley.normalFPS = 1;
         ticker.maxFPS = pikaVolley.normalFPS;
         break;
       case 'debug2':

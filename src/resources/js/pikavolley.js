@@ -56,7 +56,8 @@ export class PikachuVolleyball {
     this.slowMotionFPS = 5;
 
     /** @constant @type {number} number of frames for slow motion */
-    this.SLOW_MOTION_FRAMES_NUM = 6;
+    // this.SLOW_MOTION_FRAMES_NUM = 6;
+    this.SLOW_MOTION_FRAMES_NUM = 0;
     /** @type {number} number of frames left for slow motion */
     this.slowMotionFramesLeft = 0;
     /** @type {number} number of elapsed normal fps frames for rendering slow motion */
@@ -80,15 +81,26 @@ export class PikachuVolleyball {
     /** @type {number} frame counter */
     this.frameCounter = 0;
     /** @type {Object.<string,number>} total number of frames for each game state */
+    // this.frameTotal = {
+    //   intro: 165,
+    //   afterMenuSelection: 15,
+    //   beforeStartOfNewGame: 15,
+    //   startOfNewGame: 71,
+    //   afterEndOfRound: 5,
+    //   beforeStartOfNextRound: 30,
+    //   gameEnd: 211,
+    // };
+
     this.frameTotal = {
-      intro: 165,
-      afterMenuSelection: 15,
-      beforeStartOfNewGame: 15,
-      startOfNewGame: 71,
-      afterEndOfRound: 5,
-      beforeStartOfNextRound: 30,
-      gameEnd: 211,
+      intro: 0,
+      afterMenuSelection: 0,
+      beforeStartOfNewGame: 0,
+      startOfNewGame: 0,
+      afterEndOfRound: 0,
+      beforeStartOfNextRound: 0,
+      gameEnd: 0,
     };
+
 
     /** @type {number} counter for frames while there is no input from keyboard */
     this.noInputFrameCounter = 0;
