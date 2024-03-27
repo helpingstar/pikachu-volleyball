@@ -28,6 +28,9 @@
  */
 'use strict';
 import { rand } from './rand.js';
+import { PikaKeyboard } from './keyboard.js';
+
+import * as ort from 'onnxruntime-web/webgpu';
 
 /** @constant @type {number} ground width */
 const GROUND_WIDTH = 432;
@@ -49,6 +52,32 @@ const NET_PILLAR_HALF_WIDTH = 25;
 const NET_PILLAR_TOP_TOP_Y_COORD = 176;
 /** @constant @type {number} net pillar top's bottom side y coordinate (this value is on this physics engine only) */
 const NET_PILLAR_TOP_BOTTOM_Y_COORD = 192;
+/** @constant @type {number[]} Low values of observation */
+const obs_low = [32, 108, -15, -1, -2, 0, 0, 0, 0, 0, 0, 0, 0, 32, 108, -15, -1, -2, 0, 0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, -20, -124, 0];
+/** @constant @type {number[]} High values of observation */
+const obs_high = [400, 244, 16, 1, 3, 4, 4, 1, 1, 1, 1, 1, 1, 400, 244, 16, 1, 3, 4, 4, 1, 1, 1, 1, 1, 1, 432, 252, 432, 252, 432, 252, 20, 124, 1];
+/** @constant @type {number[][]} int number to [xDirection, yDirection, powerHit] */
+const nubmerToAction = [
+  [0, 0, 0],  // 0
+  [0, 0, 1],  // 1
+  [0, 1, 0],  // 2
+  [1, 0, 0],  // 3
+  [-1, 0, 0],  // 4
+  [0, -1, 0],  // 5
+  [1, 1, 0],  // 6
+  [-1, 1, 0],  // 7
+  [1, -1, 0],  // 8
+  [-1, -1, 0],  // 9
+  [0, 1, 1],  // 10
+  [1, 0, 1],  // 11
+  [-1, 0, 1],  // 12
+  [0, -1, 1],  // 13
+  [1, 1, 1],  // 14
+  [-1, 1, 1],  // 15
+  [1, -1, 1],  // 16
+  [-1, -1, 1]  // 17
+];
+
 
 /**
  * It's for to limit the looping number of the infinite loops.
@@ -77,12 +106,16 @@ export class PikaPhysics {
     this.player1 = new Player(false, isPlayer1Computer);
     this.player2 = new Player(true, isPlayer2Computer);
     this.ball = new Ball(false);
+    this.session = null
   }
 
+  async getSession() {
+    this.session = await ort.InferenceSession.create('../pika.onnx', { executionProviders: ["webgpu"] });
+  }
   /**
    * run {@link physicsEngine} function with this physics object and user input
    *
-   * @param {PikaUserInput[]} userInputArray userInputArray[0]: PikaUserInput object for player 1, userInputArray[1]: PikaUserInput object for player 2
+   * @param {PikaKeyboard[]} userInputArray userInputArray[0]: PikaKeyboard object for player 1, userInputArray[1]: PikaKeyboard object for player 2
    * @return {boolean} Is ball touching ground?
    */
   runEngineForNextFrame(userInputArray) {
@@ -90,7 +123,8 @@ export class PikaPhysics {
       this.player1,
       this.player2,
       this.ball,
-      userInputArray
+      userInputArray,
+      this.session
     );
     return isBallTouchingGround;
   }
@@ -212,6 +246,30 @@ class Player {
      */
     this.computerBoldness = rand() % 5; // 0xD8  // initialized to (_rand() % 5)
   }
+
+  /**
+   * get observation
+   * @param {boolean} powerHitKeyIsDownPrevious
+   */
+  get_obs(powerHitKeyIsDownPrevious) {
+    let result = [this.x,
+    this.y,
+    this.yVelocity,
+    this.divingDirection,
+    this.lyingDownDurationLeft,
+    this.frameNumber,
+    this.delayBeforeNextFrame,
+    powerHitKeyIsDownPrevious === true ? 1 : 0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+    result[this.state + 8] = 1
+    return result
+  }
+
 }
 
 /**
@@ -287,6 +345,19 @@ class Ball {
     /** @type {boolean} is power hit */
     this.isPowerHit = false; // 0x68  // initialized to 0 i.e. false
   }
+
+  get_obs() {
+    return [this.x,
+    this.y,
+    this.previousX,
+    this.previousY,
+    this.previousPreviousX,
+    this.previousPreviousY,
+    this.xVelocity,
+    this.yVelocity,
+    this.isPowerHit === true ? 1.0 : 0.0
+    ]
+  }
 }
 
 /**
@@ -297,10 +368,10 @@ class Ball {
  * @param {Player} player1 player on the left side
  * @param {Player} player2 player on the right side
  * @param {Ball} ball ball
- * @param {PikaUserInput[]} userInputArray userInputArray[0]: user input for player 1, userInputArray[1]: user input for player 2
+ * @param {PikaKeyboard[]} userInputArray userInputArray[0]: user input for player 1, userInputArray[1]: user input for player 2
  * @return {boolean} Is ball touching ground?
  */
-function physicsEngine(player1, player2, ball, userInputArray) {
+function physicsEngine(player1, player2, ball, userInputArray, session) {
   const isBallTouchingGround =
     processCollisionBetweenBallAndWorldAndSetBallPosition(ball);
 
@@ -326,7 +397,9 @@ function physicsEngine(player1, player2, ball, userInputArray) {
       player,
       userInputArray[i],
       theOtherPlayer,
-      ball
+      ball,
+      userInputArray[i ^ 1],
+      session
     );
 
     // FUN_00402830 omitted
@@ -489,18 +562,21 @@ function processCollisionBetweenBallAndWorldAndSetBallPosition(ball) {
  * FUN_00401fc0
  * Process player movement according to user input and set player position
  * @param {Player} player
- * @param {PikaUserInput} userInput
+ * @param {PikaKeyboard} userInput
  * @param {Player} theOtherPlayer
  * @param {Ball} ball
+ * @param {PikaKeyboard} theOtherUserInput
  */
 function processPlayerMovementAndSetPlayerPosition(
   player,
   userInput,
   theOtherPlayer,
-  ball
+  ball,
+  theOtherUserInput,
+  session
 ) {
   if (player.isComputer === true) {
-    letComputerDecideUserInput(player, ball, theOtherPlayer, userInput);
+    letComputerDecideUserInput(player, ball, theOtherPlayer, userInput, theOtherUserInput, session);
   }
 
   // if player is lying down.. don't move
@@ -788,6 +864,16 @@ function calculateExpectedLandingPointXFor(ball) {
 }
 
 /**
+ * 
+ * @param {number[]} observation 
+ * @return {number[]}
+ */
+function normalizeObservation(observation) {
+  const normalized = observation.map((num, i) => (num - obs_low[i]) / (obs_high[i] - obs_low[i]));
+  return normalized
+}
+
+/**
  * FUN_00402360
  * Computer controls its player by this function.
  * Computer decides the user input for the player it controls,
@@ -798,235 +884,45 @@ function calculateExpectedLandingPointXFor(ball) {
  * @param {Player} player The player whom computer controls
  * @param {Ball} ball ball
  * @param {Player} theOtherPlayer The other player
- * @param {PikaUserInput} userInput user input of the player whom computer controls
+ * @param {PikaKeyboard} userInput user input of the player whom computer controls
+ * @param {PikaKeyboard} theOtherUserInput The other user input of the player whom computer controls
  */
-function letComputerDecideUserInput(player, ball, theOtherPlayer, userInput) {
-  userInput.xDirection = 0;
-  userInput.yDirection = 0;
-  userInput.powerHit = 0;
+// function letComputerDecideUserInput(player, ball, theOtherPlayer, userInput, theOtherUserInput, session) {
+//   const playerObs = player.get_obs(userInput.powerHitKeyIsDownPrevious);
+//   const theOtherPlayerObs = theOtherPlayer.get_obs(theOtherUserInput.powerHitKeyIsDownPrevious);
+//   const ballObs = ball.get_obs();
+//   const observation = [...playerObs, ...theOtherPlayerObs, ...ballObs];
+//   const normalizedOservation = normalizeObservation(observation);
+//   const observation_float32 = Float32Array.from(normalizedOservation);
+//   const observation_tensor = new ort.Tensor('float32', observation);
+//   const feeds = { 'input': observation_tensor }; z
+//   session.run(feeds).then(result => {
+//     const number = Number(result.output.data[0])
+//     const actions = nubmerToAction[number];
+//     console.log(actions[0], actions[1], actions[2]);
+//     userInput.xDirection = actions[0];
+//     userInput.yDirection = actions[1];
+//     userInput.powerHit = actions[2];
+//   })
+// }
 
-  let virtualExpectedLandingPointX = ball.expectedLandingPointX;
-  if (
-    Math.abs(ball.x - player.x) > 100 &&
-    Math.abs(ball.xVelocity) < player.computerBoldness + 5
-  ) {
-    const leftBoundary = Number(player.isPlayer2) * GROUND_HALF_WIDTH;
-    if (
-      (ball.expectedLandingPointX <= leftBoundary ||
-        ball.expectedLandingPointX >=
-          Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
-      player.computerWhereToStandBy === 0
-    ) {
-      // If conditions above met, the computer estimates the proper location to stay as the middle point of their side
-      virtualExpectedLandingPointX =
-        leftBoundary + ((GROUND_HALF_WIDTH / 2) | 0);
-    }
-  }
-
-  if (
-    Math.abs(virtualExpectedLandingPointX - player.x) >
-    player.computerBoldness + 8
-  ) {
-    if (player.x < virtualExpectedLandingPointX) {
-      userInput.xDirection = 1;
-    } else {
-      userInput.xDirection = -1;
-    }
-  } else if (rand() % 20 === 0) {
-    player.computerWhereToStandBy = rand() % 2;
-  }
-
-  if (player.state === 0) {
-    if (
-      Math.abs(ball.xVelocity) < player.computerBoldness + 3 &&
-      Math.abs(ball.x - player.x) < PLAYER_HALF_LENGTH &&
-      ball.y > -36 &&
-      ball.y < 10 * player.computerBoldness + 84 &&
-      ball.yVelocity > 0
-    ) {
-      userInput.yDirection = -1;
-    }
-
-    const leftBoundary = Number(player.isPlayer2) * GROUND_HALF_WIDTH;
-    const rightBoundary = (Number(player.isPlayer2) + 1) * GROUND_HALF_WIDTH;
-    if (
-      ball.expectedLandingPointX > leftBoundary &&
-      ball.expectedLandingPointX < rightBoundary &&
-      Math.abs(ball.x - player.x) >
-        player.computerBoldness * 5 + PLAYER_LENGTH &&
-      ball.x > leftBoundary &&
-      ball.x < rightBoundary &&
-      ball.y > 174
-    ) {
-      // If conditions above met, the computer decides to dive!
-      userInput.powerHit = 1;
-      if (player.x < ball.x) {
-        userInput.xDirection = 1;
-      } else {
-        userInput.xDirection = -1;
-      }
-    }
-  } else if (player.state === 1 || player.state === 2) {
-    if (Math.abs(ball.x - player.x) > 8) {
-      if (player.x < ball.x) {
-        userInput.xDirection = 1;
-      } else {
-        userInput.xDirection = -1;
-      }
-    }
-    if (Math.abs(ball.x - player.x) < 48 && Math.abs(ball.y - player.y) < 48) {
-      const willInputPowerHit = decideWhetherInputPowerHit(
-        player,
-        ball,
-        theOtherPlayer,
-        userInput
-      );
-      if (willInputPowerHit === true) {
-        userInput.powerHit = 1;
-        if (
-          Math.abs(theOtherPlayer.x - player.x) < 80 &&
-          userInput.yDirection !== -1
-        ) {
-          userInput.yDirection = -1;
-        }
-      }
-    }
-  }
-}
-
-/**
- * FUN_00402630
- * This function is called by {@link letComputerDecideUserInput},
- * and also sets x and y direction user input so that it participate in
- * the decision of the direction of power hit.
- * @param {Player} player the player whom computer controls
- * @param {Ball} ball ball
- * @param {Player} theOtherPlayer The other player
- * @param {PikaUserInput} userInput user input for the player whom computer controls
- * @return {boolean} Will input power hit?
- */
-function decideWhetherInputPowerHit(player, ball, theOtherPlayer, userInput) {
-  if (rand() % 2 === 0) {
-    for (let xDirection = 1; xDirection > -1; xDirection--) {
-      for (let yDirection = -1; yDirection < 2; yDirection++) {
-        const expectedLandingPointX = expectedLandingPointXWhenPowerHit(
-          xDirection,
-          yDirection,
-          ball
-        );
-        if (
-          (expectedLandingPointX <=
-            Number(player.isPlayer2) * GROUND_HALF_WIDTH ||
-            expectedLandingPointX >=
-              Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
-          Math.abs(expectedLandingPointX - theOtherPlayer.x) > PLAYER_LENGTH
-        ) {
-          userInput.xDirection = xDirection;
-          userInput.yDirection = yDirection;
-          return true;
-        }
-      }
-    }
-  } else {
-    for (let xDirection = 1; xDirection > -1; xDirection--) {
-      for (let yDirection = 1; yDirection > -2; yDirection--) {
-        const expectedLandingPointX = expectedLandingPointXWhenPowerHit(
-          xDirection,
-          yDirection,
-          ball
-        );
-        if (
-          (expectedLandingPointX <=
-            Number(player.isPlayer2) * GROUND_HALF_WIDTH ||
-            expectedLandingPointX >=
-              Number(player.isPlayer2) * GROUND_WIDTH + GROUND_HALF_WIDTH) &&
-          Math.abs(expectedLandingPointX - theOtherPlayer.x) > PLAYER_LENGTH
-        ) {
-          userInput.xDirection = xDirection;
-          userInput.yDirection = yDirection;
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-/**
- * FUN_00402870
- * This function is called by {@link decideWhetherInputPowerHit},
- * and calculates the expected x coordinate of the landing point of the ball
- * when power hit
- * @param {PikaUserInput["xDirection"]} userInputXDirection
- * @param {PikaUserInput["yDirection"]} userInputYDirection
- * @param {Ball} ball
- * @return {number} x coord of expected landing point when power hit the ball
- */
-function expectedLandingPointXWhenPowerHit(
-  userInputXDirection,
-  userInputYDirection,
-  ball
-) {
-  const copyBall = {
-    x: ball.x,
-    y: ball.y,
-    xVelocity: ball.xVelocity,
-    yVelocity: ball.yVelocity,
-  };
-  if (copyBall.x < GROUND_HALF_WIDTH) {
-    copyBall.xVelocity = (Math.abs(userInputXDirection) + 1) * 10;
-  } else {
-    copyBall.xVelocity = -(Math.abs(userInputXDirection) + 1) * 10;
-  }
-  copyBall.yVelocity = Math.abs(copyBall.yVelocity) * userInputYDirection * 2;
-
-  let loopCounter = 0;
-  while (true) {
-    loopCounter++;
-
-    const futureCopyBallX = copyBall.x + copyBall.xVelocity;
-    if (futureCopyBallX < BALL_RADIUS || futureCopyBallX > GROUND_WIDTH) {
-      copyBall.xVelocity = -copyBall.xVelocity;
-    }
-    if (copyBall.y + copyBall.yVelocity < 0) {
-      copyBall.yVelocity = 1;
-    }
-    if (
-      Math.abs(copyBall.x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH &&
-      copyBall.y > NET_PILLAR_TOP_TOP_Y_COORD
-    ) {
-      /*
-        The code below maybe is intended to make computer do mistakes.
-        The player controlled by computer occasionally power hit ball that is bounced back by the net pillar,
-        since code below do not anticipate the bounce back.
-      */
-      if (copyBall.yVelocity > 0) {
-        copyBall.yVelocity = -copyBall.yVelocity;
-      }
-      /*
-      An alternative code for making the computer not do those mistakes is as below.
-
-      if (copyBall.y <= NET_PILLAR_TOP_BOTTOM_Y_COORD) {
-        if (copyBall.yVelocity > 0) {
-          copyBall.yVelocity = -copyBall.yVelocity;
-        }
-      } else {
-        if (copyBall.x < GROUND_HALF_WIDTH) {
-          copyBall.xVelocity = -Math.abs(copyBall.xVelocity);
-        } else {
-          copyBall.xVelocity = Math.abs(copyBall.xVelocity);
-        }
-      }
-      */
-    }
-    copyBall.y = copyBall.y + copyBall.yVelocity;
-    if (
-      copyBall.y > BALL_TOUCHING_GROUND_Y_COORD ||
-      loopCounter >= INFINITE_LOOP_LIMIT
-    ) {
-      return copyBall.x;
-    }
-    copyBall.x = copyBall.x + copyBall.xVelocity;
-    copyBall.yVelocity += 1;
-  }
+function letComputerDecideUserInput(player, ball, theOtherPlayer, userInput, theOtherUserInput, session) {
+  ort.InferenceSession.create('../pika.onnx').then(session2 => {
+    const playerObs = player.get_obs(userInput.powerHitKeyIsDownPrevious);
+    const theOtherPlayerObs = theOtherPlayer.get_obs(theOtherUserInput.powerHitKeyIsDownPrevious);
+    const ballObs = ball.get_obs();
+    const observation = [...playerObs, ...theOtherPlayerObs, ...ballObs];
+    const normalizedOservation = normalizeObservation(observation);
+    const observation_float32 = Float32Array.from(normalizedOservation);
+    const observation_tensor = new ort.Tensor('float32', observation);
+    const feeds = { 'input': observation_tensor };
+    session2.run(feeds).then(result => {
+      const number = Number(result.output.data[0])
+      const actions = nubmerToAction[number];
+      console.log(actions[0], actions[1], actions[2]);
+      userInput.xDirection = actions[0];
+      userInput.yDirection = actions[1];
+      userInput.powerHit = actions[2];
+    })
+  })
 }

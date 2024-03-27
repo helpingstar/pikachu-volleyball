@@ -39,6 +39,11 @@ export class PikachuVolleyball {
 
     this.audio = new PikaAudio(resources);
     this.physics = new PikaPhysics(true, true);
+    this.physics.getSession().then(() => {
+      console.log("Inference session is ready")
+    }).catch(e => {
+      console.log("Error", e)
+    })
     this.keyboardArray = [
       new PikaKeyboard('KeyD', 'KeyG', 'KeyR', 'KeyV', 'KeyZ', 'KeyF'), // for player1
       new PikaKeyboard( // for player2
@@ -125,7 +130,7 @@ export class PikachuVolleyball {
       this.slowMotionNumOfSkippedFrames++;
       if (
         this.slowMotionNumOfSkippedFrames %
-          Math.round(this.normalFPS / this.slowMotionFPS) !==
+        Math.round(this.normalFPS / this.slowMotionFPS) !==
         0
       ) {
         return;

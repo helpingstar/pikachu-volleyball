@@ -15,6 +15,9 @@ module.exports = {
   output: {
     filename: '[name].bundle.js',
     path: path.resolve(__dirname, 'dist'),
+    library: {
+      type: 'umd'
+    }
   },
   optimization: {
     runtimeChunk: { name: 'runtime' }, // this is for code-sharing between "main.js" and "ko.js"
@@ -34,6 +37,8 @@ module.exports = {
         { from: 'src/ko/manifest.json', to: 'ko/manifest.json' },
         { from: 'src/zh/manifest.json', to: 'zh/manifest.json' },
         { from: 'src/resources/style.css', to: 'resources/style.css' },
+        { from: 'node_modules/onnxruntime-web/dist/*.wasm', to: '[name][ext]' },
+        { from: './model', to: '[name][ext]' },
         { from: 'src/index.html', to: 'index.html' },
       ],
     }),
