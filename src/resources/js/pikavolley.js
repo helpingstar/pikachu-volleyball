@@ -106,11 +106,79 @@ export class PikachuVolleyball {
     /** @type {boolean} true: practice mode on, false: practice mode off */
     this._isPracticeMode = false;
 
+    /** @type {string[]} Array containing various states of the game */
+    this.stateArr = [
+      'intro',
+      'menu',
+      'afterMenuSelection',
+      'beforeStartOfNewGame',
+      'startOfNewGame',
+      'round',
+      'afterEndOfRound',
+      'beforeStartOfNextRound',
+    ];
+
+    /** @type {number} current state */
+    this.stateIdx = 0;
     /**
      * The game state which is being rendered now
      * @type {GameState}
      */
     this.state = this.intro;
+  }
+  /**
+   * Change the innerText of the "state" Element.
+   * @param {Number} idx stateIdx
+   */
+  setDocumentState(idx) {
+    this.stateIdx = idx;
+    document.getElementById('state').innerText = this.stateArr[idx];
+  }
+
+  /**
+   * Returns an observation based on player number.
+   * @returns {Number[]} Observation Array
+   */
+  getPlayerObservation() {
+    const p1 = this.physics.player1;
+    const p2 = this.physics.player2;
+    const ball = this.physics.ball;
+    const p1Observation = [
+      p1.x,
+      p1.y,
+      p1.yVelocity,
+      p1.divingDirection,
+      p1.lyingDownDurationLeft,
+      p1.frameNumber,
+      p1.delayBeforeNextFrame,
+      Number(this.keyboardArray[0].powerHitKeyIsDownPrevious),
+      p1.state,
+    ];
+    const p2Observation = [
+      p2.x,
+      p2.y,
+      p2.yVelocity,
+      p2.divingDirection,
+      p2.lyingDownDurationLeft,
+      p2.frameNumber,
+      p2.delayBeforeNextFrame,
+      Number(this.keyboardArray[1].powerHitKeyIsDownPrevious),
+      p2.state,
+    ];
+    const ballObservation = [
+      ball.x,
+      ball.y,
+      ball.previousX,
+      ball.previousY,
+      ball.previousPreviousX,
+      ball.previousPreviousY,
+      ball.xVelocity,
+      ball.yVelocity,
+      Number(ball.isPowerHit),
+    ];
+    const result = p1Observation.concat(p2Observation, ballObservation);
+
+    return result;
   }
 
   /**
@@ -125,7 +193,7 @@ export class PikachuVolleyball {
       this.slowMotionNumOfSkippedFrames++;
       if (
         this.slowMotionNumOfSkippedFrames %
-          Math.round(this.normalFPS / this.slowMotionFPS) !==
+        Math.round(this.normalFPS / this.slowMotionFPS) !==
         0
       ) {
         return;
@@ -137,6 +205,8 @@ export class PikachuVolleyball {
     this.keyboardArray[0].getInput();
     this.keyboardArray[1].getInput();
     this.state();
+    document.getElementById('observation').innerText =
+      this.getPlayerObservation().toString();
   }
 
   /**
@@ -144,6 +214,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   intro() {
+    this.setDocumentState(0);
     if (this.frameCounter === 0) {
       this.view.intro.visible = true;
       this.view.fadeInOut.setBlackAlphaTo(0);
@@ -173,6 +244,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   menu() {
+    this.setDocumentState(1);
     if (this.frameCounter === 0) {
       this.view.menu.visible = true;
       this.view.fadeInOut.setBlackAlphaTo(0);
@@ -259,6 +331,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   afterMenuSelection() {
+    this.setDocumentState(2);
     this.view.fadeInOut.changeBlackAlphaBy(1 / 16);
     this.frameCounter++;
     if (this.frameCounter >= this.frameTotal.afterMenuSelection) {
@@ -272,6 +345,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   beforeStartOfNewGame() {
+    this.setDocumentState(3);
     this.frameCounter++;
     if (this.frameCounter >= this.frameTotal.beforeStartOfNewGame) {
       this.frameCounter = 0;
@@ -285,6 +359,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   startOfNewGame() {
+    this.setDocumentState(4);
     if (this.frameCounter === 0) {
       this.view.game.visible = true;
       this.gameEnded = false;
@@ -328,6 +403,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   round() {
+    this.setDocumentState(5);
     const pressedPowerHit =
       this.keyboardArray[0].powerHit === 1 ||
       this.keyboardArray[1].powerHit === 1;
@@ -413,6 +489,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   afterEndOfRound() {
+    this.setDocumentState(6);
     this.view.fadeInOut.changeBlackAlphaBy(1 / 16);
     this.frameCounter++;
     if (this.frameCounter >= this.frameTotal.afterEndOfRound) {
@@ -426,6 +503,7 @@ export class PikachuVolleyball {
    * @type {GameState}
    */
   beforeStartOfNextRound() {
+    this.setDocumentState(7);
     if (this.frameCounter === 0) {
       this.view.fadeInOut.setBlackAlphaTo(1);
       this.view.game.drawReadyMessage(false);
